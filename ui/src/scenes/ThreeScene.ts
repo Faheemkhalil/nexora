@@ -1,4 +1,4 @@
-// Three.js 3D Scene — Central AI Core
+// Three.js 3D Scene — Cybernetic AI Reactor Core
 
 import * as THREE from 'three';
 
@@ -6,6 +6,20 @@ interface AIState {
   state: 'idle' | 'listening' | 'thinking' | 'working' | 'success' | 'error';
   intensity: number; // 0-1
 }
+
+// Cyan palette — no whites
+const CYAN = {
+  deep: 0x004C59,
+  mid: 0x008FA3,
+  bright: 0x00B8CC,
+  primary: 0x00DFFF,
+  glow: 0x00D4FF,
+  green: 0x00FF88,
+  dark: 0x001a22,
+  shell: 0x0a1a24,
+  metal: 0x0c1e2a,
+  metalBright: 0x14303d,
+} as const;
 
 export class ThreeScene {
   private container: HTMLElement | null = null;
@@ -16,12 +30,20 @@ export class ThreeScene {
   private animationId: number | null = null;
   private clock = new THREE.Clock();
 
-  // Core objects
+  // Core groups
   private core: THREE.Group | null = null;
-  private coreSphere: THREE.Mesh | null = null;
+  private mechanicalGroup: THREE.Group | null = null;
+  private innerEnergy: THREE.Mesh | null = null;
+  private outerShell: THREE.Mesh | null = null;
+  private coreGlow: THREE.Mesh | null = null;
   private rings: THREE.Mesh[] = [];
+  private mechanicalArms: THREE.Mesh[] = [];
   private particles: THREE.Points | null = null;
+  private innerParticles: THREE.Points | null = null;
   private pulseWave: THREE.Mesh | null = null;
+
+  // Lights
+  private coreLights: THREE.PointLight[] = [];
 
   // State
   private currentState: AIState = { state: 'idle', intensity: 0 };
@@ -36,7 +58,10 @@ export class ThreeScene {
     this.createContainer();
     this.initScene();
     this.createCore();
+    this.createMechanicalHousing();
+    this.createOrbitalRings();
     this.createParticles();
+    this.createInnerEnergyParticles();
     this.setupEventListeners();
   }
 
@@ -64,133 +89,273 @@ export class ThreeScene {
   private initScene(): void {
     if (!this.canvas) return;
 
-    // Renderer
+    // Renderer — alpha:false for opaque canvas, scene.background fills background
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 0.85;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    // Scene
+    // Scene with dark background
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0e14);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
-      50,
+      45,
       this.container!.clientWidth / this.container!.clientHeight,
       0.1,
-      1000
+      100
     );
-    this.camera.position.set(0, 0, 5);
+    this.camera.position.set(0, 0.3, 6);
+    this.camera.lookAt(0, 0, 0);
 
-    // Lights — restrained to keep the core cyan, not white
-    const ambient = new THREE.AmbientLight(0x112233, 0.25);
+    // Lighting — very restrained, dark ambient
+    const ambient = new THREE.AmbientLight(0x051018, 0.4);
     this.scene.add(ambient);
 
-    const rimLight = new THREE.DirectionalLight(0x00d4ff, 0.15);
-    rimLight.position.set(0, 5, -5);
-    this.scene.add(rimLight);
+    // Top rim light — subtle
+    const topLight = new THREE.DirectionalLight(0x004455, 0.3);
+    topLight.position.set(0, 5, 3);
+    this.scene.add(topLight);
 
-    const coreLight = new THREE.PointLight(0x00d4ff, 1.5, 8);
-    coreLight.position.set(0, 0, 0);
-    this.scene.add(coreLight);
-    this.coreLight = coreLight;
+    // Bottom fill — very dim
+    const bottomLight = new THREE.DirectionalLight(0x002233, 0.15);
+    bottomLight.position.set(0, -3, 2);
+    this.scene.add(bottomLight);
+
+    // Core point lights — cyan, controlled intensity
+    const lightPositions: [number, number, number][] = [
+      [0, 0, 0],
+      [1.2, 0.8, 0.5],
+      [-1.2, -0.8, 0.5],
+      [0, 1.2, -0.5],
+    ];
+
+    lightPositions.forEach((pos) => {
+      const light = new THREE.PointLight(CYAN.glow, 0.8, 5, 2);
+      light.position.set(...pos);
+      this.scene!.add(light);
+      this.coreLights.push(light);
+    });
+
+    // Ambient glow at center
+    const centerLight = new THREE.PointLight(CYAN.bright, 0.6, 3, 1.5);
+    centerLight.position.set(0, 0, 0);
+    this.scene!.add(centerLight);
+    this.coreLights.push(centerLight);
   }
 
-  private coreLight: THREE.PointLight | null = null;
-
+  // ─── CORE ─────────────────────────────────────────────────────────
   private createCore(): void {
     if (!this.scene) return;
 
     this.core = new THREE.Group();
     this.scene.add(this.core);
 
-    // Central sphere — dark glass with cyan translucency, not white
-    const geometry = new THREE.IcosahedronGeometry(1, 16);
-    const material = new THREE.MeshPhysicalMaterial({
-      color: 0x001822,
-      metalness: 0.2,
-      roughness: 0.15,
-      transmission: 0.5,
-      thickness: 0.3,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.15,
-      ior: 1.3,
+    // 1) Inner energy sphere — bright cyan core, small, emissive
+    const innerGeo = new THREE.IcosahedronGeometry(0.55, 3);
+    const innerMat = new THREE.MeshStandardMaterial({
+      color: CYAN.mid,
+      emissive: new THREE.Color(CYAN.bright),
+      emissiveIntensity: 0.9,
+      roughness: 0.3,
+      metalness: 0.1,
       transparent: true,
       opacity: 0.85,
-      emissive: new THREE.Color(0x003355),
-      emissiveIntensity: 0.3,
     });
-    this.coreSphere = new THREE.Mesh(geometry, material);
-    this.core.add(this.coreSphere);
+    this.innerEnergy = new THREE.Mesh(innerGeo, innerMat);
+    this.core.add(this.innerEnergy);
 
-    // Inner glow sphere
-    const innerGeo = new THREE.SphereGeometry(0.7, 32, 32);
-    const innerMat = new THREE.MeshBasicMaterial({
-      color: 0x00d4ff,
+    // 2) Core glow sphere — additive halo around inner energy
+    const glowGeo = new THREE.SphereGeometry(0.65, 24, 24);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: CYAN.primary,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
       side: THREE.BackSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
-    const inner = new THREE.Mesh(innerGeo, innerMat);
-    this.core.add(inner);
-    this.innerGlow = inner;
+    this.coreGlow = new THREE.Mesh(glowGeo, glowMat);
+    this.core.add(this.coreGlow);
 
-    // Rings
-    const ringCount = 3;
-    for (let i = 0; i < ringCount; i++) {
-      const ringGeo = new THREE.RingGeometry(1.5 + i * 0.5, 1.6 + i * 0.5, 64);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x00d4ff,
+    // 3) Outer translucent shell — glass-like containment
+    const shellGeo = new THREE.IcosahedronGeometry(1.0, 2);
+    const shellMat = new THREE.MeshPhysicalMaterial({
+      color: CYAN.dark,
+      emissive: new THREE.Color(CYAN.deep),
+      emissiveIntensity: 0.15,
+      metalness: 0.4,
+      roughness: 0.2,
+      transmission: 0.6,
+      thickness: 0.4,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1,
+      ior: 1.4,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+    });
+    this.outerShell = new THREE.Mesh(shellGeo, shellMat);
+    this.core.add(this.outerShell);
+  }
+
+  // ─── MECHANICAL HOUSING ───────────────────────────────────────────
+  private createMechanicalHousing(): void {
+    if (!this.core) return;
+
+    this.mechanicalGroup = new THREE.Group();
+    this.core.add(this.mechanicalGroup);
+
+    const metalMat = new THREE.MeshStandardMaterial({
+      color: CYAN.metal,
+      emissive: new THREE.Color(CYAN.deep),
+      emissiveIntensity: 0.08,
+      metalness: 0.85,
+      roughness: 0.35,
+    });
+
+    const metalBrightMat = new THREE.MeshStandardMaterial({
+      color: CYAN.metalBright,
+      emissive: new THREE.Color(CYAN.mid),
+      emissiveIntensity: 0.12,
+      metalness: 0.8,
+      roughness: 0.3,
+    });
+
+    // Radial mechanical arms — 6 arms extending outward
+    const armCount = 6;
+    for (let i = 0; i < armCount; i++) {
+      const angle = (i / armCount) * Math.PI * 2;
+      const armGroup = new THREE.Group();
+
+      // Main arm — elongated box
+      const armGeo = new THREE.BoxGeometry(0.08, 0.12, 1.8);
+      const arm = new THREE.Mesh(armGeo, metalMat);
+      arm.position.set(0, 0, 1.6);
+      armGroup.add(arm);
+
+      // Arm connector ring segment — thicker near core
+      const connGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.3, 8);
+      const conn = new THREE.Mesh(connGeo, metalBrightMat);
+      conn.rotation.x = Math.PI / 2;
+      conn.position.set(0, 0, 0.65);
+      armGroup.add(conn);
+
+      // Small cyan accent light on each arm tip
+      const tipGeo = new THREE.SphereGeometry(0.03, 8, 8);
+      const tipMat = new THREE.MeshBasicMaterial({
+        color: CYAN.primary,
         transparent: true,
-        opacity: 0.3 - i * 0.08,
-        side: THREE.DoubleSide,
-        depthWrite: false,
+        opacity: 0.7,
       });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = -Math.PI / 2 + (i * 0.3);
-      ring.rotation.z = i * 0.5;
-      this.core.add(ring);
-      this.rings.push(ring);
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.position.set(0, 0, 2.5);
+      armGroup.add(tip);
+
+      armGroup.rotation.y = angle;
+      armGroup.rotation.x = (Math.random() - 0.5) * 0.15;
+      this.mechanicalGroup.add(armGroup);
+      this.mechanicalArms.push(arm);
     }
 
-    // Pulse wave
-    const waveGeo = new THREE.RingGeometry(1, 1.1, 64);
+    // Conduit rings — 2 thin rings near the shell
+    for (let i = 0; i < 2; i++) {
+      const r = 1.15 + i * 0.15;
+      const conduitGeo = new THREE.TorusGeometry(r, 0.02, 8, 48);
+      const conduitMat = new THREE.MeshStandardMaterial({
+        color: CYAN.metalBright,
+        emissive: new THREE.Color(CYAN.mid),
+        emissiveIntensity: 0.2,
+        metalness: 0.9,
+        roughness: 0.2,
+      });
+      const conduit = new THREE.Mesh(conduitGeo, conduitMat);
+      conduit.rotation.x = Math.PI / 2 + i * 0.2;
+      this.mechanicalGroup.add(conduit);
+    }
+
+    // Vertical support struts — 4 around the core
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      const strutGeo = new THREE.CylinderGeometry(0.025, 0.035, 2.2, 6);
+      const strut = new THREE.Mesh(strutGeo, metalMat);
+      const dist = 1.3;
+      strut.position.set(
+        Math.cos(angle) * dist,
+        0,
+        Math.sin(angle) * dist
+      );
+      strut.rotation.z = (Math.random() - 0.5) * 0.1;
+      this.mechanicalGroup.add(strut);
+    }
+  }
+
+  // ─── ORBITAL RINGS ────────────────────────────────────────────────
+  private createOrbitalRings(): void {
+    if (!this.core) return;
+
+    const ringConfigs = [
+      { radius: 1.6, tube: 0.015, color: CYAN.primary, opacity: 0.5, rotX: -0.3, rotZ: 0.1 },
+      { radius: 2.0, tube: 0.012, color: CYAN.bright, opacity: 0.35, rotX: -0.5, rotZ: 0.4 },
+      { radius: 2.4, tube: 0.010, color: CYAN.mid, opacity: 0.25, rotX: -0.7, rotZ: 0.7 },
+      { radius: 2.8, tube: 0.008, color: CYAN.deep, opacity: 0.18, rotX: -0.9, rotZ: 1.0 },
+    ];
+
+    ringConfigs.forEach((cfg) => {
+      const ringGeo = new THREE.TorusGeometry(cfg.radius, cfg.tube, 16, 96);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: cfg.color,
+        transparent: true,
+        opacity: cfg.opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = cfg.rotX;
+      ring.rotation.z = cfg.rotZ;
+      this.core!.add(ring);
+      this.rings.push(ring);
+    });
+
+    // Pulse wave — thin ring that expands on activity
+    const waveGeo = new THREE.TorusGeometry(1.0, 0.01, 8, 64);
     const waveMat = new THREE.MeshBasicMaterial({
-      color: 0x00d4ff,
+      color: CYAN.primary,
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     this.pulseWave = new THREE.Mesh(waveGeo, waveMat);
     this.pulseWave.rotation.x = -Math.PI / 2;
-    this.core.add(this.pulseWave);
+    this.core!.add(this.pulseWave);
   }
 
-  private innerGlow: THREE.Mesh | null = null;
-
+  // ─── OUTER PARTICLES ──────────────────────────────────────────────
   private createParticles(): void {
     if (!this.scene) return;
 
-    const count = this.reducedMotion ? 500 : 2000;
+    const count = this.reducedMotion ? 400 : 1200;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
     const colors = new Float32Array(count * 3);
     const velocities = new Float32Array(count * 3);
 
-    const color1 = new THREE.Color(0x00d4ff);
-    const color2 = new THREE.Color(0x00ff88);
+    const cyanColor = new THREE.Color(CYAN.bright);
+    const greenColor = new THREE.Color(CYAN.green);
 
     for (let i = 0; i < count; i++) {
-      const radius = 2 + Math.random() * 4;
+      const radius = 2.5 + Math.random() * 4;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
 
@@ -198,17 +363,17 @@ export class ThreeScene {
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
 
-      sizes[i] = Math.random() * 2 + 0.5;
+      sizes[i] = Math.random() * 1.5 + 0.3;
 
       const t = Math.random();
-      const c = color1.clone().lerp(color2, t);
+      const c = cyanColor.clone().lerp(greenColor, t * 0.3);
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
 
-      velocities[i * 3] = (Math.random() - 0.5) * 0.002;
-      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.002;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.002;
+      velocities[i * 3] = (Math.random() - 0.5) * 0.001;
+      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.001;
+      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.001;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -217,10 +382,10 @@ export class ThreeScene {
     geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 1,
+      size: 0.8,
       vertexColors: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
       sizeAttenuation: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -230,10 +395,48 @@ export class ThreeScene {
     this.scene.add(this.particles);
   }
 
+  // ─── INNER ENERGY PARTICLES ───────────────────────────────────────
+  private createInnerEnergyParticles(): void {
+    if (!this.scene) return;
+
+    const count = this.reducedMotion ? 100 : 300;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      const r = Math.random() * 0.8;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+
+      sizes[i] = Math.random() * 0.8 + 0.2;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.4,
+      color: CYAN.primary,
+      transparent: true,
+      opacity: 0.6,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    this.innerParticles = new THREE.Points(geometry, material);
+    this.core!.add(this.innerParticles);
+  }
+
+  // ─── EVENT LISTENERS ──────────────────────────────────────────────
   private setupEventListeners(): void {
     window.addEventListener('resize', () => this.onResize());
 
-    // Listen for state changes from backend
     this.ipc.on('voice_state', (_: string, data: any) => {
       this.setState(data.state || 'idle', data.intensity || 0);
     });
@@ -247,6 +450,7 @@ export class ThreeScene {
     });
   }
 
+  // ─── STATE MANAGEMENT ─────────────────────────────────────────────
   public setState(state: AIState['state'], intensity: number): void {
     this.currentState = { state, intensity };
     this.targetIntensity = intensity;
@@ -254,34 +458,39 @@ export class ThreeScene {
   }
 
   private updateCoreAppearance(): void {
-    if (!this.coreSphere || !this.innerGlow || !this.coreLight) return;
+    if (!this.innerEnergy || !this.coreGlow) return;
 
-    const colors: Record<AIState['state'], { core: number; glow: number; light: number }> = {
-      idle: { core: 0x001122, glow: 0x00d4ff, light: 0x00d4ff },
-      listening: { core: 0x002211, glow: 0x00ff88, light: 0x00ff88 },
-      thinking: { core: 0x222200, glow: 0xffaa00, light: 0xffaa00 },
-      working: { core: 0x220022, glow: 0xff66cc, light: 0xff66cc },
-      success: { core: 0x002200, glow: 0x00ff88, light: 0x00ff88 },
-      error: { core: 0x220000, glow: 0xff3366, light: 0xff3366 },
+    const colors: Record<AIState['state'], { energy: number; glow: number; light: number }> = {
+      idle:      { energy: CYAN.mid,    glow: CYAN.primary, light: CYAN.glow },
+      listening: { energy: CYAN.green,  glow: CYAN.green,   light: CYAN.green },
+      thinking:  { energy: 0xccaa00,    glow: 0xffaa00,     light: 0xffaa00 },
+      working:   { energy: 0xcc66cc,    glow: 0xff66cc,     light: 0xff66cc },
+      success:   { energy: CYAN.green,  glow: CYAN.green,   light: CYAN.green },
+      error:     { energy: 0xcc3333,    glow: 0xff3366,     light: 0xff3366 },
     };
 
     const c = colors[this.currentState.state] || colors.idle;
     const intensity = this.currentState.intensity;
 
-    // Core material color
-    (this.coreSphere.material as THREE.MeshPhysicalMaterial).color.setHex(c.core);
-    (this.coreSphere.material as THREE.MeshPhysicalMaterial).emissive = new THREE.Color(c.core);
-    (this.coreSphere.material as THREE.MeshPhysicalMaterial).emissiveIntensity = intensity * 0.3;
+    // Inner energy color and emissive
+    const energyMat = this.innerEnergy.material as THREE.MeshStandardMaterial;
+    energyMat.color.setHex(c.energy);
+    energyMat.emissive.setHex(c.glow);
+    energyMat.emissiveIntensity = 0.5 + intensity * 0.5;
 
-    // Inner glow
-    (this.innerGlow.material as THREE.MeshBasicMaterial).color.setHex(c.glow);
-    (this.innerGlow.material as THREE.MeshBasicMaterial).opacity = 0.15 + intensity * 0.3;
+    // Core glow
+    const glowMat = this.coreGlow.material as THREE.MeshBasicMaterial;
+    glowMat.color.setHex(c.glow);
+    glowMat.opacity = 0.08 + intensity * 0.15;
 
-    // Core light
-    this.coreLight.color.setHex(c.light);
-    this.coreLight.intensity = intensity * 2;
+    // Core lights
+    this.coreLights.forEach((light, i) => {
+      light.color.setHex(c.light);
+      light.intensity = 0.4 + intensity * (i === this.coreLights.length - 1 ? 1.2 : 0.6);
+    });
   }
 
+  // ─── ANIMATION LOOP ──────────────────────────────────────────────
   public start(): void {
     this.animate();
   }
@@ -293,21 +502,49 @@ export class ThreeScene {
     const time = this.clock.getElapsedTime();
 
     if (!this.reducedMotion) {
-      // Rotate core slowly
+      // Core group — very slow rotation
       if (this.core) {
-        this.core.rotation.y += delta * 0.05;
-        this.core.rotation.x = Math.sin(time * 0.2) * 0.1;
+        this.core.rotation.y += delta * 0.04;
+        this.core.rotation.x = Math.sin(time * 0.15) * 0.05;
       }
 
-      // Rotate rings
+      // Inner energy — slow independent rotation
+      if (this.innerEnergy) {
+        this.innerEnergy.rotation.y += delta * 0.08;
+        this.innerEnergy.rotation.x = Math.sin(time * 0.3) * 0.06;
+
+        // Subtle breathing scale
+        const breathe = 1.0 + Math.sin(time * 0.8) * 0.03;
+        this.innerEnergy.scale.setScalar(breathe);
+      }
+
+      // Outer shell — very slight rotation opposite direction
+      if (this.outerShell) {
+        this.outerShell.rotation.y -= delta * 0.02;
+        this.outerShell.rotation.z = Math.sin(time * 0.2) * 0.03;
+      }
+
+      // Core glow pulse
+      if (this.coreGlow) {
+        const glowPulse = 0.08 + Math.sin(time * 0.6) * 0.04;
+        (this.coreGlow.material as THREE.MeshBasicMaterial).opacity = glowPulse + this.currentState.intensity * 0.1;
+      }
+
+      // Mechanical housing — very subtle rotation
+      if (this.mechanicalGroup) {
+        this.mechanicalGroup.rotation.y += delta * 0.01;
+      }
+
+      // Orbital rings — each at different speed
       this.rings.forEach((ring, i) => {
-        ring.rotation.z += delta * 0.1 * (i + 1) * 0.5;
-        ring.rotation.y += delta * 0.02 * (i + 1);
+        const speed = 0.05 + i * 0.02;
+        ring.rotation.z += delta * speed;
+        ring.rotation.y += delta * speed * 0.3;
       });
 
-      // Animate particles
+      // Outer particles
       if (this.particles) {
-        this.particles.rotation.y += delta * 0.01;
+        this.particles.rotation.y += delta * 0.005;
         const pos = this.particles.geometry.attributes.position.array as Float32Array;
         const vel = this.particles.geometry.attributes.velocity.array as Float32Array;
         for (let i = 0; i < pos.length; i += 3) {
@@ -315,30 +552,36 @@ export class ThreeScene {
           pos[i + 1] += vel[i + 1] * 60;
           pos[i + 2] += vel[i + 2] * 60;
 
-          // Wrap around
           const dist = Math.sqrt(pos[i] ** 2 + pos[i + 1] ** 2 + pos[i + 2] ** 2);
-          if (dist > 6) {
-            pos[i] *= 0.3;
-            pos[i + 1] *= 0.3;
-            pos[i + 2] *= 0.3;
+          if (dist > 6.5) {
+            pos[i] *= 0.2;
+            pos[i + 1] *= 0.2;
+            pos[i + 2] *= 0.2;
           }
         }
         this.particles.geometry.attributes.position.needsUpdate = true;
       }
 
-      // Pulse wave
+      // Inner energy particles — faster, orbiting inside core
+      if (this.innerParticles) {
+        this.innerParticles.rotation.y += delta * 0.3;
+        this.innerParticles.rotation.x += delta * 0.1;
+      }
+
+      // Pulse wave on activity
       if (this.pulseWave && this.currentState.intensity > 0.3) {
-        const scale = 1 + (Math.sin(time * 3) * 0.5 + 0.5) * this.currentState.intensity * 2;
+        const scale = 1 + (Math.sin(time * 2) * 0.5 + 0.5) * this.currentState.intensity * 1.5;
         this.pulseWave.scale.setScalar(scale);
         (this.pulseWave.material as THREE.MeshBasicMaterial).opacity =
-          (1 - (scale - 1) / 2) * this.currentState.intensity * 0.5;
+          Math.max(0, (1 - (scale - 1) / 1.5)) * this.currentState.intensity * 0.35;
+      } else if (this.pulseWave) {
+        (this.pulseWave.material as THREE.MeshBasicMaterial).opacity = 0;
       }
     }
 
     // Smooth intensity transitions
-    const currentIntensity = this.currentState.intensity;
-    if (Math.abs(currentIntensity - this.targetIntensity) > 0.01) {
-      this.currentState.intensity += (this.targetIntensity - currentIntensity) * 0.1;
+    if (Math.abs(this.currentState.intensity - this.targetIntensity) > 0.01) {
+      this.currentState.intensity += (this.targetIntensity - this.currentState.intensity) * 0.08;
       this.updateCoreAppearance();
     }
 
@@ -348,6 +591,7 @@ export class ThreeScene {
     }
   };
 
+  // ─── RESIZE ──────────────────────────────────────────────────────
   private onResize(): void {
     if (!this.container || !this.renderer || !this.camera) return;
 
@@ -359,6 +603,7 @@ export class ThreeScene {
     this.renderer.setSize(width, height);
   }
 
+  // ─── CLEANUP ─────────────────────────────────────────────────────
   public dispose(): void {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);

@@ -460,10 +460,11 @@ export class ThreeScene {
   private updateCoreAppearance(): void {
     if (!this.innerEnergy || !this.coreGlow) return;
 
-    const colors: Record<AIState['state'], { energy: number; glow: number; light: number }> = {
+    const colors: Record<string, { energy: number; glow: number; light: number }> = {
       idle:      { energy: CYAN.mid,    glow: CYAN.primary, light: CYAN.glow },
       listening: { energy: CYAN.green,  glow: CYAN.green,   light: CYAN.green },
       thinking:  { energy: 0xccaa00,    glow: 0xffaa00,     light: 0xffaa00 },
+      speaking:  { energy: 0x00cccc,    glow: 0x00ffff,     light: 0x00ffff },
       working:   { energy: 0xcc66cc,    glow: 0xff66cc,     light: 0xff66cc },
       success:   { energy: CYAN.green,  glow: CYAN.green,   light: CYAN.green },
       error:     { energy: 0xcc3333,    glow: 0xff3366,     light: 0xff3366 },

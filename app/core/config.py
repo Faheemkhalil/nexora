@@ -37,6 +37,19 @@ class AIGlobals(BaseModel):
     offline_fallback_enabled: bool = True
 
 
+class VoiceSettings(BaseModel):
+    enabled: bool = True
+    stt_engine: str = "google"  # google, whisper
+    tts_engine: str = "edge"    # edge, espeak
+    tts_voice: str = "en-US-AriaNeural"
+    language: str = "en-US"
+    microphone_device: int | None = None
+    volume: float = 1.0
+    push_to_talk: bool = True
+    continuous: bool = False
+    wake_word: str | None = None
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_nested_delimiter="__", env_file=".env")
 
@@ -45,6 +58,7 @@ class Settings(BaseSettings):
     security: SecuritySettings = SecuritySettings()
     ui: UISettings = UISettings()
     ai: AIGlobals = AIGlobals()
+    voice: VoiceSettings = VoiceSettings()
 
 
 settings = Settings()

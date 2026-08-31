@@ -8,6 +8,7 @@ import { RightPanel } from './components/RightPanel';
 import { StatusBar } from './components/StatusBar';
 import { SettingsModal } from './screens/SettingsModal';
 import { DiagnosticsModal } from './screens/DiagnosticsModal';
+import { VoiceController } from './components/VoiceController';
 
 export class App {
   private ipc: IPCClient;
@@ -18,6 +19,7 @@ export class App {
   private statusBar: StatusBar | null = null;
   private settingsModal: SettingsModal | null = null;
   private diagnosticsModal: DiagnosticsModal | null = null;
+  private voiceController: VoiceController | null = null;
 
   constructor() {
     this.ipc = new IPCClient();
@@ -43,6 +45,9 @@ export class App {
     this.statusBar = new StatusBar(this.ipc);
     this.settingsModal = new SettingsModal(this.ipc);
     this.diagnosticsModal = new DiagnosticsModal(this.ipc);
+    this.voiceController = new VoiceController(this.ipc);
+    // VoiceController self-mounts into the chat header — keep reference alive
+    void this.voiceController;
 
     // Start Three.js scene
     this.threeScene.start();

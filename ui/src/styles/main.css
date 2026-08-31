@@ -655,6 +655,105 @@ html, body, #app {
   }
 }
 
+/* Voice Controller */
+.voice-controller {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.voice-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 200ms;
+  padding: 0;
+}
+
+.voice-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.voice-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.voice-btn.listening {
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+
+.voice-btn.thinking,
+.voice-btn.speaking {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+.voice-btn.error {
+  border-color: var(--accent-error);
+  color: var(--accent-error);
+  background: rgba(255, 51, 102, 0.1);
+}
+
+.voice-indicator {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  pointer-events: none;
+}
+
+.voice-indicator.listening {
+  border-color: var(--accent-secondary);
+  animation: voice-pulse 1s ease-in-out infinite;
+}
+
+.voice-indicator.speaking {
+  border-color: var(--accent-primary);
+  animation: voice-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.15); }
+}
+
+.voice-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voice-state-text {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.voice-transcript {
+  font-size: 11px;
+  color: var(--accent-primary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: none;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

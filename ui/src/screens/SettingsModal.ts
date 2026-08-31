@@ -203,15 +203,15 @@ export class SettingsModal {
       <div class="setting-row">
         <span class="setting-label">Microphone</span>
         <div class="setting-control">
-          <select class="setting-select" id="voice-mic"><option value="default">Default</option></select>
+          <select class="setting-select" id="voice-mic"><option value="default">System Default</option></select>
         </div>
       </div>
       <div class="setting-row">
         <span class="setting-label">Speech-to-Text Engine</span>
         <div class="setting-control">
           <select class="setting-select" id="voice-stt">
-            <option value="whisper">Whisper (local)</option>
-            <option value="browser">Browser Web Speech API</option>
+            <option value="google">Google (online, free)</option>
+            <option value="whisper">Whisper (local, requires GPU)</option>
           </select>
         </div>
       </div>
@@ -219,9 +219,28 @@ export class SettingsModal {
         <span class="setting-label">Text-to-Speech Engine</span>
         <div class="setting-control">
           <select class="setting-select" id="voice-tts">
-            <option value="browser">Browser Speech Synthesis</option>
-            <option value="piper">Piper (local)</option>
+            <option value="edge">Edge TTS (online, high quality)</option>
+            <option value="espeak">espeak-ng (offline, basic)</option>
           </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Language</span>
+        <div class="setting-control">
+          <select class="setting-select" id="voice-lang">
+            <option value="en-US" selected>English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+            <option value="de-DE">German</option>
+            <option value="ja-JP">Japanese</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Push to Talk</span>
+        <div class="setting-control">
+          <div class="toggle active" id="voice-ptt" role="switch" aria-checked="true"></div>
         </div>
       </div>
       <div class="setting-row">
@@ -347,6 +366,27 @@ export class SettingsModal {
     const addBtn = panel.querySelector('#add-provider-btn');
     if (addBtn) {
       addBtn.addEventListener('click', () => this.showAddProviderForm());
+    }
+
+    // Voice settings
+    if (tabId === 'voice') {
+      const sttSelect = panel.querySelector('#voice-stt') as HTMLSelectElement;
+      const ttsSelect = panel.querySelector('#voice-tts') as HTMLSelectElement;
+      const langSelect = panel.querySelector('#voice-lang') as HTMLSelectElement;
+      const wakeInput = panel.querySelector('#voice-wake') as HTMLInputElement;
+
+      sttSelect?.addEventListener('change', () => {
+        this.ipc.configureVoice({ stt_engine: sttSelect.value });
+      });
+      ttsSelect?.addEventListener('change', () => {
+        this.ipc.configureVoice({ tts_engine: ttsSelect.value });
+      });
+      langSelect?.addEventListener('change', () => {
+        this.ipc.configureVoice({ language: langSelect.value });
+      });
+      wakeInput?.addEventListener('change', () => {
+        this.ipc.setSetting('voice.wake_word', wakeInput.value || null);
+      });
     }
   }
 

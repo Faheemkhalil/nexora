@@ -20,8 +20,9 @@ from loguru import logger
 from .core.config import settings
 from .core.db import execute
 from .core.diagnostics import run_all_diagnostics
-from .core.errors import NexoraError, AuthenticationError, ProviderError
+from .core.errors import NexoraError, AuthenticationError, ProviderError, VoiceError
 from .providers import manager
+from .voice import VoiceManager, VoiceState
 
 _UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 _UI_DIST_DIR = _UI_DIR / "dist"
@@ -68,10 +69,17 @@ class IPCServer:
             "conversations.get": self._handle_conversations_get,
             "settings.get": self._handle_settings_get,
             "settings.set": self._handle_settings_set,
+            "voice.state": self._handle_voice_state,
+            "voice.listen": self._handle_voice_listen,
+            "voice.speak": self._handle_voice_speak,
+            "voice.stop": self._handle_voice_stop,
+            "voice.devices": self._handle_voice_devices,
+            "voice.configure": self._handle_voice_configure,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
         self._runner: web.AppRunner | None = None
+        self._voice: VoiceManager | None = None
 
     @property
     def shutdown_requested(self) -> bool:
@@ -90,6 +98,23 @@ class IPCServer:
             port=settings.server.port,
         )
         await site.start()
+
+        # Initialize voice pipeline
+        voice_cfg = settings.voice
+        try:
+            self._voice = VoiceManager(
+                stt_engine=voice_cfg.stt_engine,
+                tts_engine=voice_cfg.tts_engine,
+                tts_voice=voice_cfg.tts_voice,
+                language=voice_cfg.language,
+                microphone_device=voice_cfg.microphone_device,
+            )
+            self._voice.on_state_change(self._on_voice_state_change)
+            logger.info(f"Voice pipeline initialized (STT={voice_cfg.stt_engine}, TTS={voice_cfg.tts_engine})")
+        except VoiceError as e:
+            logger.warning(f"Voice pipeline init failed (non-fatal): {e}")
+            self._voice = None
+
         logger.info(
             f"IPC server started on {settings.server.host}:{settings.server.port}"
         )
@@ -100,10 +125,73 @@ class IPCServer:
         for ws in list(self._ws_clients):
             await ws.close()
         self._ws_clients.clear()
+        if self._voice:
+            await self._voice.close()
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
         logger.info("IPC server stopped.")
+
+    # --- Voice state broadcast ---
+
+    def _on_voice_state_change(self, state: VoiceState) -> None:
+        """Broadcast voice state changes to all connected clients."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._send_event("voice_state", {"state": state.value}))
+        except Exception:
+            pass
+
+    # --- Voice handlers ---
+
+    async def _handle_voice_state(self, params: dict) -> dict:
+        if not self._voice:
+            return {"state": "error", "available": {"microphone": False, "stt": False, "tts": False, "pipeline": False}}
+        return {
+            "state": self._voice.state.value,
+            "available": self._voice.available,
+        }
+
+    async def _handle_voice_listen(self, params: dict) -> dict:
+        if not self._voice:
+            raise VoiceError("Voice pipeline not available.")
+        duration = params.get("duration", 5.0)
+        text = await self._voice.start_listening(duration)
+        return {"transcript": text}
+
+    async def _handle_voice_speak(self, params: dict) -> dict:
+        if not self._voice:
+            raise VoiceError("Voice pipeline not available.")
+        text = params.get("text", "")
+        if not text:
+            raise VoiceError("No text provided for speech synthesis.")
+        audio = await self._voice.speak(text)
+        return {"ok": True, "audio_size": len(audio)}
+
+    async def _handle_voice_stop(self, params: dict) -> dict:
+        if self._voice:
+            from .voice import VoiceState
+            self._voice._set_state(VoiceState.IDLE)
+        return {"ok": True}
+
+    async def _handle_voice_devices(self, params: dict) -> list:
+        if not self._voice:
+            return []
+        return self._voice.list_devices()
+
+    async def _handle_voice_configure(self, params: dict) -> dict:
+        if not self._voice:
+            raise VoiceError("Voice pipeline not available.")
+        await self._voice.reconfigure(
+            stt_engine=params.get("stt_engine"),
+            tts_engine=params.get("tts_engine"),
+            tts_voice=params.get("tts_voice"),
+            language=params.get("language"),
+            microphone_device=params.get("microphone_device"),
+        )
+        return {"ok": True, "available": self._voice.available}
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle WebSocket connections from the frontend."""

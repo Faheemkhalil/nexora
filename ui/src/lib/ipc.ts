@@ -206,4 +206,29 @@ export class IPCClient {
   async shutdown(): Promise<any> {
     return this.request('shutdown');
   }
+
+  // Voice methods
+  async getVoiceState(): Promise<any> {
+    return this.request('voice.state');
+  }
+
+  async voiceListen(duration?: number): Promise<any> {
+    return this.request('voice.listen', { duration: duration || 5 });
+  }
+
+  async voiceSpeak(text: string): Promise<any> {
+    return this.request('voice.speak', { text });
+  }
+
+  async voiceStop(): Promise<any> {
+    return this.request('voice.stop');
+  }
+
+  async getVoiceDevices(): Promise<any> {
+    return this.request('voice.devices');
+  }
+
+  async configureVoice(config: any): Promise<any> {
+    return this.request('voice.configure', config);
+  }
 }

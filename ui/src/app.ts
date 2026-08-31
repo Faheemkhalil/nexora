@@ -27,6 +27,14 @@ export class App {
     // Connect to backend
     await this.ipc.connect();
 
+    // Ensure the .main grid area exists for ThreeScene and ChatOverlay
+    const app = document.getElementById('app');
+    if (app && !app.querySelector('.main')) {
+      const main = document.createElement('div');
+      main.className = 'main';
+      app.appendChild(main);
+    }
+
     // Initialize UI components
     this.threeScene = new ThreeScene(this.ipc);
     this.sidebar = new Sidebar(this.ipc, (view) => this.switchView(view));

@@ -30,6 +30,7 @@ export class SettingsModal {
   private element: HTMLElement | null = null;
   private ipc: IPCClient;
   private activeTab = 'ai';
+  private _escHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(ipc: IPCClient) {
     this.ipc = ipc;
@@ -42,11 +43,25 @@ export class SettingsModal {
     this.element!.classList.add('open');
     document.body.style.overflow = 'hidden';
     this.loadProviders();
+
+    // Escape key handler
+    if (!this._escHandler) {
+      this._escHandler = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && this.element?.classList.contains('open')) {
+          this.close();
+        }
+      };
+      document.addEventListener('keydown', this._escHandler);
+    }
   }
 
   close(): void {
     this.element?.classList.remove('open');
     document.body.style.overflow = '';
+    if (this._escHandler) {
+      document.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
   }
 
   private createElement(): void {

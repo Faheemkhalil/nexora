@@ -14,6 +14,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { ConfirmationDialog } from './components/ConfirmationDialog';
 import { CodingWorkspace } from './components/CodingWorkspace';
 import { WebSearch } from './components/WebSearch';
+import { SecurityPanel } from './components/SecurityPanel';
 
 export class App {
   private ipc: IPCClient;
@@ -30,6 +31,7 @@ export class App {
   private confirmDialog: ConfirmationDialog | null = null;
   private codingWorkspace: CodingWorkspace | null = null;
   private webSearch: WebSearch | null = null;
+  private securityPanel: SecurityPanel | null = null;
 
   constructor() {
     this.ipc = new IPCClient();
@@ -63,6 +65,7 @@ export class App {
     void this.confirmDialog;
     this.codingWorkspace = new CodingWorkspace(this.ipc);
     this.webSearch = new WebSearch(this.ipc);
+    this.securityPanel = new SecurityPanel(this.ipc);
 
     // Start Three.js scene
     this.threeScene.start();
@@ -102,6 +105,7 @@ export class App {
     this.fileExplorer?.hide();
     this.codingWorkspace?.hide();
     this.webSearch?.hide();
+    this.securityPanel?.hide();
 
     if (view === 'settings') {
       this.settingsModal?.open();
@@ -113,6 +117,8 @@ export class App {
       this.codingWorkspace?.show();
     } else if (view === 'browser') {
       this.webSearch?.show();
+    } else if (view === 'security') {
+      this.securityPanel?.show();
     } else if (view === 'chat') {
       this.fileExplorer?.show();
     }

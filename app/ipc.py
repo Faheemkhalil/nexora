@@ -110,6 +110,22 @@ class IPCServer:
             "internet.fetch_json": self._handle_internet_fetch_json,
             "internet.docs": self._handle_internet_docs,
             "internet.open": self._handle_internet_open,
+            # Security handlers
+            "security.findings.create": self._handle_security_findings_create,
+            "security.findings.list": self._handle_security_findings_list,
+            "security.findings.update": self._handle_security_findings_update,
+            "security.findings.delete": self._handle_security_findings_delete,
+            "security.findings.summary": self._handle_security_findings_summary,
+            "security.lab.create": self._handle_security_lab_create,
+            "security.lab.status": self._handle_security_lab_status,
+            "security.lab.start": self._handle_security_lab_start,
+            "security.lab.stop": self._handle_security_lab_stop,
+            "security.lab.delete": self._handle_security_lab_delete,
+            "security.reports.generate": self._handle_security_reports_generate,
+            "security.scope.check": self._handle_security_scope_check,
+            "security.scope.add": self._handle_security_scope_add,
+            "security.scope.list": self._handle_security_scope_list,
+            "security.scope.delete": self._handle_security_scope_delete,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -181,6 +197,16 @@ class IPCServer:
         register_fetch_tools(registry)
         register_docs_tools(registry)
         register_browser_tools(registry)
+
+        # Register security tools
+        from .security.findings import register_finding_tools
+        from .security.lab import register_lab_tools
+        from .security.reports import register_report_tools
+        from .security.scope import register_scope_tools
+        register_finding_tools(registry)
+        register_lab_tools(registry)
+        register_report_tools(registry)
+        register_scope_tools(registry)
         logger.info(f"Tools registered: {len(registry.list_tools())} tools in {len(registry.list_categories())} categories")
 
         logger.info(
@@ -422,6 +448,82 @@ class IPCServer:
 
     async def _handle_internet_open(self, params: dict) -> dict:
         result = await registry.execute("internet.open", params, confirmed=True)
+        return result.to_dict()
+
+    # --- Security handlers ---
+
+    async def _handle_security_findings_create(self, params: dict) -> dict:
+        result = await registry.execute("security.findings.create", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_findings_list(self, params: dict) -> dict:
+        result = await registry.execute("security.findings.list", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_findings_update(self, params: dict) -> dict:
+        result = await registry.execute("security.findings.update", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_findings_delete(self, params: dict) -> dict:
+        result = await registry.execute("security.findings.delete", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.findings.delete"}
+        return result.to_dict()
+
+    async def _handle_security_findings_summary(self, params: dict) -> dict:
+        result = await registry.execute("security.findings.summary", {}, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_lab_create(self, params: dict) -> dict:
+        result = await registry.execute("security.lab.create", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.lab.create"}
+        return result.to_dict()
+
+    async def _handle_security_lab_status(self, params: dict) -> dict:
+        result = await registry.execute("security.lab.status", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_lab_start(self, params: dict) -> dict:
+        result = await registry.execute("security.lab.start", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.lab.start"}
+        return result.to_dict()
+
+    async def _handle_security_lab_stop(self, params: dict) -> dict:
+        result = await registry.execute("security.lab.stop", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.lab.stop"}
+        return result.to_dict()
+
+    async def _handle_security_lab_delete(self, params: dict) -> dict:
+        result = await registry.execute("security.lab.delete", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.lab.delete"}
+        return result.to_dict()
+
+    async def _handle_security_reports_generate(self, params: dict) -> dict:
+        result = await registry.execute("security.reports.generate", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_scope_check(self, params: dict) -> dict:
+        result = await registry.execute("security.scope.check", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_scope_add(self, params: dict) -> dict:
+        result = await registry.execute("security.scope.add", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.scope.add"}
+        return result.to_dict()
+
+    async def _handle_security_scope_list(self, params: dict) -> dict:
+        result = await registry.execute("security.scope.list", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_security_scope_delete(self, params: dict) -> dict:
+        result = await registry.execute("security.scope.delete", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "security.scope.delete"}
         return result.to_dict()
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:

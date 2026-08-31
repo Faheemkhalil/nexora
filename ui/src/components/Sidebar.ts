@@ -15,6 +15,7 @@ const settingsIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const activityIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
 const pluginIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`;
 const storeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`;
+const chartIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', icon: homeIcon },
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { id: 'reports', label: 'Reports', icon: fileIcon },
   { id: 'plugins', label: 'Plugins', icon: pluginIcon },
   { id: 'marketplace', label: 'Marketplace', icon: storeIcon },
+  { id: 'analytics', label: 'Analytics', icon: chartIcon },
   { id: 'settings', label: 'Settings', icon: settingsIcon },
   { id: 'diagnostics', label: 'Diagnostics', icon: activityIcon },
 ];

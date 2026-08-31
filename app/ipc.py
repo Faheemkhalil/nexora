@@ -135,6 +135,22 @@ class IPCServer:
             "memory.scopes": self._handle_memory_scopes,
             # Local AI
             "local_ai.detect": self._handle_local_ai_detect,
+            # Auto-update
+            "update.version": self._handle_update_version,
+            "update.check": self._handle_update_check,
+            "update.history": self._handle_update_history,
+            "update.auto_update": self._handle_update_auto_toggle,
+            # Crash reporting
+            "crash.reports": self._handle_crash_reports,
+            "crash.stats": self._handle_crash_stats,
+            "crash.capture": self._handle_crash_capture,
+            "crash.clear": self._handle_crash_clear,
+            # Analytics
+            "analytics.track": self._handle_analytics_track,
+            "analytics.usage": self._handle_analytics_usage,
+            "analytics.performance": self._handle_analytics_performance,
+            "analytics.adoption": self._handle_analytics_adoption,
+            "analytics.dashboard": self._handle_analytics_dashboard,
             # Plugin system
             "plugins.list": self._handle_plugins_list,
             "plugins.installed": self._handle_plugins_installed,
@@ -596,6 +612,93 @@ class IPCServer:
         from .core.local_ai import detect_local_ai
         info = await detect_local_ai()
         return {"available": info is not None, "info": info}
+
+    # ── Update handlers ─────────────────────────────────────────────
+
+    async def _handle_update_version(self, params: dict) -> dict:
+        from .core.updater import UpdateManager
+        um = UpdateManager()
+        return um.get_current_version()
+
+    async def _handle_update_check(self, params: dict) -> dict:
+        from .core.updater import UpdateManager
+        um = UpdateManager()
+        return await um.check_for_updates()
+
+    async def _handle_update_history(self, params: dict) -> dict:
+        from .core.updater import UpdateManager
+        um = UpdateManager()
+        return {"history": um.get_update_history()}
+
+    async def _handle_update_auto_toggle(self, params: dict) -> dict:
+        from .core.updater import UpdateManager
+        um = UpdateManager()
+        enabled = params.get("enabled", True)
+        um.set_auto_update(enabled)
+        return {"auto_update": enabled}
+
+    # ── Crash report handlers ───────────────────────────────────────
+
+    async def _handle_crash_reports(self, params: dict) -> dict:
+        from .core.crash_reporter import CrashReporter
+        cr = CrashReporter()
+        limit = params.get("limit", 50)
+        component = params.get("component")
+        return {"reports": cr.get_reports(limit, component)}
+
+    async def _handle_crash_stats(self, params: dict) -> dict:
+        from .core.crash_reporter import CrashReporter
+        cr = CrashReporter()
+        return cr.get_crash_stats()
+
+    async def _handle_crash_capture(self, params: dict) -> dict:
+        from .core.crash_reporter import CrashReporter
+        cr = CrashReporter()
+        error_type = params.get("error_type", "ManualReport")
+        message = params.get("message", "User-reported issue")
+        component = params.get("component", "unknown")
+        report_id = cr.capture_exception(
+            RuntimeError(message), component,
+            context={"error_type": error_type}
+        )
+        return {"captured": True, "report_id": report_id}
+
+    async def _handle_crash_clear(self, params: dict) -> dict:
+        from .core.crash_reporter import CrashReporter
+        cr = CrashReporter()
+        count = cr.clear_all()
+        return {"cleared": count}
+
+    # ── Analytics handlers ───────────────────────────────────────────
+
+    async def _handle_analytics_track(self, params: dict) -> dict:
+        from .core.analytics import AnalyticsManager
+        am = AnalyticsManager()
+        event_type = params.get("event_type", "unknown")
+        component = params.get("component", "")
+        details = params.get("details")
+        am.track_event(event_type, component, details)
+        return {"tracked": True}
+
+    async def _handle_analytics_usage(self, params: dict) -> dict:
+        from .core.analytics import AnalyticsManager
+        am = AnalyticsManager()
+        return am.get_usage_stats()
+
+    async def _handle_analytics_performance(self, params: dict) -> dict:
+        from .core.analytics import AnalyticsManager
+        am = AnalyticsManager()
+        return am.get_performance_metrics()
+
+    async def _handle_analytics_adoption(self, params: dict) -> dict:
+        from .core.analytics import AnalyticsManager
+        am = AnalyticsManager()
+        return am.get_feature_adoption()
+
+    async def _handle_analytics_dashboard(self, params: dict) -> dict:
+        from .core.analytics import AnalyticsManager
+        am = AnalyticsManager()
+        return am.get_dashboard()
 
     # ── Plugin handlers ──────────────────────────────────────────────
 

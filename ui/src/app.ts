@@ -17,6 +17,7 @@ import { WebSearch } from './components/WebSearch';
 import { SecurityPanel } from './components/SecurityPanel';
 import { PluginManager } from './components/PluginManager';
 import { Marketplace } from './components/Marketplace';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 
 export class App {
   private ipc: IPCClient;
@@ -36,6 +37,7 @@ export class App {
   private securityPanel: SecurityPanel | null = null;
   private pluginManager: PluginManager | null = null;
   private marketplace: Marketplace | null = null;
+  private analyticsDashboard: AnalyticsDashboard | null = null;
 
   constructor() {
     this.ipc = new IPCClient();
@@ -72,6 +74,7 @@ export class App {
     this.securityPanel = new SecurityPanel(this.ipc);
     this.pluginManager = new PluginManager(this.ipc);
     this.marketplace = new Marketplace(this.ipc);
+    this.analyticsDashboard = new AnalyticsDashboard(this.ipc);
 
     // Start Three.js scene
     this.threeScene.start();
@@ -114,6 +117,7 @@ export class App {
     this.securityPanel?.hide();
     this.pluginManager?.hide();
     this.marketplace?.hide();
+    this.analyticsDashboard?.hide();
 
     if (view === 'settings') {
       this.settingsModal?.open();
@@ -131,6 +135,8 @@ export class App {
       this.pluginManager?.show();
     } else if (view === 'marketplace') {
       this.marketplace?.show();
+    } else if (view === 'analytics') {
+      this.analyticsDashboard?.show();
     } else if (view === 'chat') {
       this.fileExplorer?.show();
     }

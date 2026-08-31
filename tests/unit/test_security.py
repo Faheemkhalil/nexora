@@ -206,6 +206,32 @@ class TestGenerateReport:
         finally:
             os.unlink(path)
 
+    def test_generate_pdf(self):
+        asyncio.run(init_db())
+        from app.security.reports import GenerateReportTool
+        tool = GenerateReportTool()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            path = f.name
+        try:
+            result = asyncio.run(tool.execute({"format": "pdf", "save_path": path}))
+            assert result.success
+            assert os.path.exists(path)
+            assert os.path.getsize(path) > 0
+            with open(path, "rb") as f:
+                header = f.read(5)
+            assert header == b"%PDF-"
+        finally:
+            os.unlink(path)
+
+    def test_generate_pdf_no_save(self):
+        asyncio.run(init_db())
+        from app.security.reports import GenerateReportTool
+        tool = GenerateReportTool()
+        result = asyncio.run(tool.execute({"format": "pdf"}))
+        assert result.success
+        assert result.data["format"] == "pdf"
+        assert result.data["report_size"] > 0
+
 
 # ============================================================
 # Scope Management

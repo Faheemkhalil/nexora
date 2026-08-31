@@ -1,225 +1,137 @@
-# NEXORA — Personal AI Command & Security System
+# NEXORA
 
-A futuristic desktop AI assistant with a 3D command-center interface.
+**Personal AI Command & Security System**
+
+A futuristic desktop AI assistant combining AI chat, voice interaction, 3D interface, coding workspace, internet research, and defensive cybersecurity tooling.
+
+![NEXORA](https://img.shields.io/badge/Phase-1–8_Complete-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.11+-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)
+![Three.js](https://img.shields.io/badge/Three.js-WebGL_2.0-cyan)
+![Tests](https://img.shields.io/badge/Tests-185_passing-brightgreen)
+
+---
+
+## Features
+
+| Phase | Module | Capabilities |
+|-------|--------|-------------|
+| 1 | **Foundation** | Desktop shell (pywebview GTK), 3D reactor core (Three.js), backend (aiohttp), WebSocket IPC, SQLite, config, logging |
+| 2 | **AI** | Provider abstraction, OpenRouter, custom/local providers, streaming chat, secure API key storage |
+| 3 | **Voice** | Push-to-talk, STT (Google/Whisper), TTS (Edge TTS/espeak), voice state visualization |
+| 4 | **PC Control** | File read/write/search, system info, integrated terminal, app management, permission system, emergency stop |
+| 5 | **Coding** | Code editor with syntax highlighting, git operations, test runner, AI coding agent, project manager |
+| 6 | **Internet** | Web search (DuckDuckGo), page fetch with readability extraction, documentation lookup, browser integration |
+| 7 | **Security** | Findings management, security lab mode, scope enforcement, report generation (Markdown/HTML/PDF) |
+| 8 | **Advanced** | Memory system (global/project/conversation), local AI fallback (Ollama/llama.cpp), enhanced diagnostics |
+
+---
 
 ## Architecture
 
-- **Frontend**: TypeScript + Three.js, served by an embedded HTTP server
-- **Desktop Shell**: Python backend with `pywebview` hosting a native window
-- **IPC**: WebSocket transport between the web UI and Python backend
-- **Database**: SQLite with async access via `aiosqlite`
-- **Providers**: Pluggable AI provider abstraction (OpenRouter, custom, local)
-- **Secrets**: OS keychain via `keyring` for API keys
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    NEXORA Desktop Shell                      │
+│                   (pywebview + GTK WebKit)                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Sidebar   │  │ 3D Core  │  │  Chat    │  │  Right   │  │
+│  │           │  │ (Three.js│  │ Overlay  │  │  Panel   │  │
+│  │           │  │  Reactor)│  │          │  │          │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                                                             │
+├──────────────────── WebSocket IPC ─────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Python Backend (aiohttp)                │   │
+│  │                                                     │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐ │   │
+│  │  │ Providers │  │  Voice   │  │  Tool Registry   │ │   │
+│  │  │ OpenRouter│  │  STT/TTS │  │  (57 tools)      │ │   │
+│  │  │ Custom    │  │  Mic     │  │  files, system   │ │   │
+│  │  │ Local     │  │  States  │  │  coding, internet│ │   │
+│  │  └──────────┘  └──────────┘  │  security, memory │ │   │
+│  │                               └──────────────────┘ │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐ │   │
+│  │  │ Database  │  │ Secrets  │  │  Diagnostics     │ │   │
+│  │  │ (SQLite)  │  │ (Keyring)│  │  (10 checks)     │ │   │
+│  │  └──────────┘  └──────────┘  └──────────────────┘ │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Quick Start (Development)
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Desktop Shell | pywebview 6.x (GTK WebKit2GTK) |
+| Frontend | TypeScript, Three.js, WebGL 2.0, Vite |
+| Backend | Python 3.11+, aiohttp, asyncio |
+| Database | SQLite (aiosqlite) |
+| AI Providers | OpenRouter, Custom (OpenAI-compatible), Local (Ollama/llama.cpp) |
+| Voice | SpeechRecognition, edge-tts, PyAudio/sounddevice |
+| Security | findings, lab mode, scope, reports (Markdown/HTML/PDF) |
+| Packaging | PyInstaller |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- GTK 3.0 + WebKit2GTK 4.1 (Linux)
+- Audio devices (for voice features)
+
+### Install
 
 ```bash
-# 1. Install system dependencies (requires sudo)
-sudo ./scripts/setup_gui.sh
+# Clone
+git clone https://github.com/Faheemkhalil/nexora.git
+cd nexora
 
-# 2. Install Python package in development mode
-pip3 install -e ".[dev]"
+# Install Python dependencies
+pip install -e .
 
-# 3. Build frontend assets
-cd ui && npm install && npm run build
-cd ..
+# Install frontend dependencies
+cd ui && npm install && npm run build && cd ..
+```
 
-# 4. Run NEXORA
+### Run
+
+```bash
+# Desktop mode (with GUI window)
 python3 -m app.main
-```
 
----
-
-## GUI Environment Setup
-
-### System Requirements
-
-- **Display**: X11 (DISPLAY) or Wayland (WAYLAND_DISPLAY)
-- **Python**: 3.11+
-- **System packages** (Debian/Kali):
-  - `gir1.2-webkit2-4.1` — WebKit2GTK GObject introspection (**REQUIRED**)
-  - `libwebkit2gtk-4.1-0` — WebKit2GTK runtime
-  - `python3-gi` — Python GObject bindings
-  - `python3-gi-cairo` — Python Cairo bindings
-  - `xvfb` — Virtual framebuffer (for headless/CI testing)
-
-### Automated Setup
-
-```bash
-# Run the setup script (prompts for sudo if needed)
-./scripts/setup_gui.sh
-```
-
-This script:
-1. Detects your display environment (X11/Wayland)
-2. Checks currently installed packages
-3. Installs missing required/optional packages via apt
-4. Verifies Python GI bindings work
-5. Verifies pywebview GTK backend initializes
-
-### Manual Verification
-
-```bash
-# Run full environment diagnostic
-python3 scripts/check_gui.py
-
-# Expected output: All checks PASS
-# If any FAIL, fix before proceeding
-```
-
----
-
-## Frontend Build
-
-The frontend uses Vite + TypeScript + Three.js (via CDN importmap).
-
-```bash
-cd ui
-
-# Install dependencies
-npm install
-
-# Development server (with hot reload)
-npm run dev
-
-# Production build
-npm run build
-
-# Preview production build
-npm run preview
-
-cd ..
-```
-
-**Build output**: `ui/dist/` (served as `/webui/` by the backend)
-
-**Note**: Three.js is loaded from CDN via importmap in `index.html` — works offline after first load due to browser caching.
-
----
-
-## Launching NEXORA
-
-### Desktop Mode (GUI)
-
-```bash
-# From project root
-python3 -m app.main
-```
-
-This starts:
-1. Backend (database, providers, IPC server on `ws://127.0.0.1:8765/ws`)
-2. Native desktop window via pywebview (GTK+WebKit2)
-3. Loads UI from `http://127.0.0.1:8765/webui/`
-
-### Headless Mode (Backend Only)
-
-```bash
+# Headless mode (backend only, no window)
 python3 -m app.main --headless
 ```
 
-Useful for:
-- Server deployments
-- API-only usage
-- CI/CD pipelines
-
----
-
-## Running Tests
-
-### Backend Unit Tests
+### Run Tests
 
 ```bash
+# Unit tests
+python3 -m pytest tests/unit/ -v
+
+# Integration tests
+python3 -m pytest tests/integration/ -v
+
 # All tests
 python3 -m pytest tests/ -v
-
-# Specific test file
-python3 -m pytest tests/unit/test_config.py -v
 ```
 
-### GUI Smoke Test
-
-**Requires graphical environment** (or xvfb):
+### Build Standalone App
 
 ```bash
-# On graphical desktop
-python3 scripts/gui_smoke_test.py
+# Build standalone executable
+python3 scripts/package.py
 
-# On headless/CI with xvfb
-xvfb-run -a python3 scripts/gui_smoke_test.py
-```
-
-Tests performed:
-1. Module imports (pywebview, app.main, app.ipc)
-2. Backend startup & IPC server
-3. HTTP endpoints (/healthz, /api/providers, /api/diagnostics, /api/conversations, static files)
-4. WebSocket IPC (ping, providers.list, diagnostics)
-5. **GUI window creation** (actual native window)
-6. Clean shutdown
-
----
-
-## Troubleshooting
-
-### "pywebview GTK cannot be loaded"
-
-```bash
-# Missing WebKit2GTK GI bindings
-sudo apt-get install gir1.2-webkit2-4.1 python3-gi python3-gi-cairo
-
-# Verify
-python3 -c "import gi; gi.require_version('WebKit2', '4.1'); from gi.repository import WebKit2; print('OK')"
-```
-
-### "No module named 'qtpy'" / QT backend errors
-
-The project uses GTK backend. QT is not required. If pywebview tries QT, ensure GTK is initialized first:
-
-```python
-import webview
-webview.initialize('gtk')  # Must be called before create_window
-```
-
-### "Cannot open display" / DISPLAY issues
-
-```bash
-# Check display
-echo $DISPLAY
-
-# If using SSH, enable X11 forwarding
-ssh -X user@host
-
-# For headless testing
-xvfb-run -a python3 scripts/gui_smoke_test.py
-```
-
-### Frontend not loading / 404 on static files
-
-```bash
-# Rebuild frontend
-cd ui && npm run build && cd ..
-
-# Verify files exist
-ls -la ui/dist/
-ls -la ui/src/
-```
-
-### WebSocket connection failed
-
-```bash
-# Check backend is running
-curl http://127.0.0.1:8765/healthz
-
-# Check port
-ss -tlnp | grep 8765
-```
-
-### Backend exceptions on startup
-
-```bash
-# Run with debug logging
-LOGURU_LEVEL=DEBUG python3 -m app.main --headless
+# Build single-file executable
+python3 scripts/package.py --onefile
 ```
 
 ---
@@ -228,82 +140,188 @@ LOGURU_LEVEL=DEBUG python3 -m app.main --headless
 
 ```
 NEXORA/
-├── app/
-│   ├── core/           # Config, DB, logging, secrets, errors, diagnostics
-│   ├── providers/      # AI provider abstraction + implementations
-│   ├── ipc.py          # HTTP + WebSocket server + static file serving
-│   └── main.py         # Application entry point (desktop + headless)
-├── ui/
-│   ├── src/            # TypeScript source
-│   │   ├── components/ # Sidebar, ChatOverlay, RightPanel, StatusBar
-│   │   ├── screens/    # SettingsModal, DiagnosticsModal
-│   │   ├── scenes/     # ThreeScene (3D AI core)
-│   │   ├── lib/        # IPCClient
-│   │   ├── app.ts      # Main app controller
-│   │   └── main.ts     # Entry point
-│   ├── styles/         # CSS (main.css)
-│   ├── index.html      # HTML entry (served as /webui/)
-│   └── package.json    # Frontend build config
-├── scripts/
-│   ├── check_gui.py    # Environment diagnostic
-│   ├── gui_smoke_test.py # GUI smoke test
-│   └── setup_gui.sh    # System package installer
+├── app/                          # Python backend
+│   ├── core/                     # Core infrastructure
+│   │   ├── config.py             # Pydantic settings
+│   │   ├── db.py                 # SQLite + migrations
+│   │   ├── diagnostics.py        # System health checks
+│   │   ├── errors.py             # Typed error hierarchy
+│   │   ├── logging.py            # Structured logging (loguru)
+│   │   ├── memory.py             # Scoped memory system
+│   │   ├── local_ai.py           # Local AI fallback
+│   │   └── secrets.py            # Secure credential storage
+│   ├── providers/                # AI provider system
+│   │   ├── base.py               # Provider abstraction
+│   │   ├── manager.py            # Provider lifecycle
+│   │   ├── openrouter.py         # OpenRouter integration
+│   │   ├── custom.py             # Custom API endpoint
+│   │   └── local.py              # Local inference
+│   ├── voice/                    # Voice pipeline
+│   │   ├── stt.py                # Speech-to-Text
+│   │   ├── tts.py                # Text-to-Speech
+│   │   ├── microphone.py         # Audio capture
+│   │   └── voice_manager.py      # Pipeline orchestration
+│   ├── tools/                    # Tool system
+│   │   ├── base.py               # Tool abstraction (57 tools)
+│   │   ├── registry.py           # Tool registry + execution
+│   │   ├── permissions.py        # Risk levels + emergency stop
+│   │   ├── file_tools.py         # File operations
+│   │   ├── system_tools.py       # System info
+│   │   ├── terminal_tools.py     # Command execution
+│   │   └── app_tools.py          # Application management
+│   ├── coding/                   # Coding workspace
+│   │   ├── code_editor.py        # Read/write/search files
+│   │   ├── git_ops.py            # Git operations
+│   │   ├── test_runner.py        # Run pytest/npm/cargo
+│   │   ├── ai_agent.py           # AI code assistance
+│   │   └── project_manager.py    # Project detection
+│   ├── internet/                 # Internet tools
+│   │   ├── search.py             # Web search
+│   │   ├── fetch.py              # Page fetch + JSON API
+│   │   ├── docs.py               # Documentation lookup
+│   │   └── browser.py            # Browser integration
+│   ├── security/                 # Security module
+│   │   ├── findings.py           # Finding management
+│   │   ├── lab.py                # Lab mode
+│   │   ├── reports.py            # Report generation
+│   │   └── scope.py              # Scope enforcement
+│   ├── ipc.py                    # WebSocket + HTTP IPC
+│   └── main.py                   # Entry point
+├── ui/                           # TypeScript frontend
+│   ├── src/
+│   │   ├── app.ts                # Application controller
+│   │   ├── scenes/ThreeScene.ts  # 3D reactor core
+│   │   ├── components/           # UI components (17)
+│   │   ├── screens/              # Settings, Diagnostics
+│   │   ├── lib/ipc.ts            # IPC client
+│   │   └── styles/main.css       # Global styles
+│   └── dist/                     # Built frontend
 ├── tests/
-│   └── unit/           # 48 unit tests
-├── data/               # Runtime data (DB, logs)
-├── pyproject.toml      # Python package config
+│   ├── unit/                     # 185 unit tests
+│   └── integration/              # End-to-end tests
+├── scripts/                      # Build + packaging
+│   ├── package.py                # PyInstaller packaging
+│   ├── gui_smoke_test.py         # GUI smoke test
+│   └── ...
+├── pyproject.toml                # Python project config
 └── README.md
 ```
 
 ---
 
-## Configuration
+## IPC API
 
-Settings are managed via Pydantic Settings in `app/core/config.py` with environment variable overrides:
+All communication between frontend and backend uses WebSocket IPC.
 
-| Setting | Env Var | Default |
-|---------|---------|---------|
-| Database path | `NEXORA_DB_PATH` | `~/.nexora/nexora.db` |
-| Server host | `NEXORA_SERVER_HOST` | `127.0.0.1` |
-| Server port | `NEXORA_SERVER_PORT` | `8765` |
-| UI fullscreen | `NEXORA_UI_FULLSCREEN` | `false` |
-| Log level | `NEXORA_LOG_LEVEL` | `INFO` |
+### Connect
+
+```javascript
+const ws = new WebSocket('ws://127.0.0.1:8765/ws');
+```
+
+### Send Request
+
+```javascript
+ws.send(JSON.stringify({
+  id: "1",
+  method: "chat_stream",
+  params: {
+    message: "Hello NEXORA",
+    conversation_id: null
+  }
+}));
+```
+
+### Available Methods
+
+| Category | Methods |
+|----------|---------|
+| **Chat** | `chat`, `chat_stream` |
+| **Providers** | `providers.list`, `providers.add`, `providers.remove`, `providers.test` |
+| **Voice** | `voice.state`, `voice.listen`, `voice.speak`, `voice.stop`, `voice.devices` |
+| **Tools** | `tools.list`, `tools.execute`, `tools.confirm`, `tools.cancel` |
+| **Coding** | `coding.read_file`, `coding.write_file`, `coding.search`, `coding.git.*`, `coding.test.run`, `coding.agent.*` |
+| **Internet** | `internet.search`, `internet.fetch`, `internet.fetch_json`, `internet.docs`, `internet.open` |
+| **Security** | `security.findings.*`, `security.lab.*`, `security.reports.generate`, `security.scope.*` |
+| **Memory** | `memory.set`, `memory.get`, `memory.search`, `memory.delete`, `memory.clear`, `memory.scopes` |
+| **System** | `diagnostics`, `settings.get`, `settings.set`, `shutdown` |
+
+### WebSocket Events
+
+| Event | Description |
+|-------|-------------|
+| `chat_chunk_start` | Streaming chat response started |
+| `chat_chunk` | Streaming text chunk |
+| `chat_chunk_end` | Streaming response complete |
+| `voice_state` | Voice pipeline state changed |
 
 ---
 
-## Provider Setup
+## Settings
 
-1. Open **Settings** → **Providers** tab
-2. Click **Add Provider**
-3. Select type:
-   - **OpenRouter** — Enter API key, model (e.g., `openai/gpt-4`)
-   - **Custom** — OpenAI-compatible endpoint + API key
-   - **Local** — Ollama/llama.cpp base URL (no API key needed)
-4. Click **Save**
-5. Test connection with **Test** button
+Access via the Settings UI or programmatically:
+
+```javascript
+// Get settings
+const settings = await ipc.request('settings.get');
+
+// Set a setting
+await ipc.request('settings.set', {
+  key: 'ai.default_temperature',
+  value: 0.7
+});
+```
+
+---
+
+## Security
+
+- **Permission system**: Tools declare risk levels (safe/low/medium/high/critical)
+- **Confirmation required**: Destructive operations need explicit user approval
+- **Emergency stop**: Global halt for all running operations
+- **Scope enforcement**: Security lab tools only operate within authorized scope
+- **Audit logging**: All tool executions logged to SQLite
+- **Secure storage**: API keys stored via OS keyring, never in plain text
+
+---
+
+## Diagnostics
+
+The built-in diagnostics screen checks:
+
+| Check | What it verifies |
+|-------|-----------------|
+| Python | Version, interpreter path |
+| Platform | OS, architecture |
+| Dependencies | All required packages installed |
+| Database | SQLite accessible, tables exist |
+| Credential storage | Keyring backend available |
+| Audio devices | Microphone/speaker detected |
+| Provider config | At least one provider configured |
+| Internet | Network connectivity |
+| Local AI | Ollama/llama.cpp availability |
+| Memory | Memory system operational |
 
 ---
 
 ## Development
 
-### Adding a New Provider
-
-1. Create `app/providers/yourprovider.py` extending `BaseProvider`
-2. Register in `app/providers/__init__.py`
-3. Add to `ProviderType` enum in `app/providers/base.py`
-
-### Running Diagnostics
-
 ```bash
-# Via IPC (when backend running)
-curl http://127.0.0.1:8765/api/diagnostics
+# Install dev dependencies
+pip install -e ".[dev]"
 
-# Or from UI: Settings → Diagnostics → Run Again
+# Run tests with coverage
+python3 -m pytest tests/ -v --cov=app --cov-report=term-missing
+
+# Type check frontend
+cd ui && npx tsc --noEmit
+
+# Build frontend
+cd ui && npm run build
+
+# Run GUI smoke test
+python3 scripts/gui_smoke_test.py
 ```
-
-### Database Migrations
-
-Migrations run automatically on startup. Schema version tracked in `.schema_version` file alongside DB.
 
 ---
 

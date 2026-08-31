@@ -9,6 +9,9 @@ import { StatusBar } from './components/StatusBar';
 import { SettingsModal } from './screens/SettingsModal';
 import { DiagnosticsModal } from './screens/DiagnosticsModal';
 import { VoiceController } from './components/VoiceController';
+import { Terminal } from './components/Terminal';
+import { FileExplorer } from './components/FileExplorer';
+import { ConfirmationDialog } from './components/ConfirmationDialog';
 
 export class App {
   private ipc: IPCClient;
@@ -20,6 +23,9 @@ export class App {
   private settingsModal: SettingsModal | null = null;
   private diagnosticsModal: DiagnosticsModal | null = null;
   private voiceController: VoiceController | null = null;
+  private terminal: Terminal | null = null;
+  private fileExplorer: FileExplorer | null = null;
+  private confirmDialog: ConfirmationDialog | null = null;
 
   constructor() {
     this.ipc = new IPCClient();
@@ -46,8 +52,11 @@ export class App {
     this.settingsModal = new SettingsModal(this.ipc);
     this.diagnosticsModal = new DiagnosticsModal(this.ipc);
     this.voiceController = new VoiceController(this.ipc);
-    // VoiceController self-mounts into the chat header — keep reference alive
     void this.voiceController;
+    this.terminal = new Terminal(this.ipc);
+    this.fileExplorer = new FileExplorer(this.ipc);
+    this.confirmDialog = new ConfirmationDialog(this.ipc);
+    void this.confirmDialog;
 
     // Start Three.js scene
     this.threeScene.start();
@@ -82,11 +91,18 @@ export class App {
       chatContainer.style.display = view === 'chat' ? 'block' : 'none';
     }
 
-    // Handle special views
+    // Handle view switching
+    this.terminal?.hide();
+    this.fileExplorer?.hide();
+
     if (view === 'settings') {
       this.settingsModal?.open();
     } else if (view === 'diagnostics') {
       this.diagnosticsModal?.open();
+    } else if (view === 'terminal') {
+      this.terminal?.show();
+    } else if (view === 'chat') {
+      this.fileExplorer?.show();
     }
   }
 

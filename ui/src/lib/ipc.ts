@@ -231,4 +231,37 @@ export class IPCClient {
   async configureVoice(config: any): Promise<any> {
     return this.request('voice.configure', config);
   }
+
+  // Tool methods
+  async listTools(category?: string): Promise<any> {
+    return this.request('tools.list', { category });
+  }
+
+  async executeTool(name: string, inputs: any, confirmed = false): Promise<any> {
+    return this.request('tools.execute', { name, inputs, confirmed });
+  }
+
+  async confirmTool(token: string): Promise<any> {
+    return this.request('tools.confirm', { token });
+  }
+
+  async cancelTool(token?: string, sessionId?: string): Promise<any> {
+    return this.request('tools.cancel', { token, session_id: sessionId });
+  }
+
+  async getToolSessions(): Promise<any> {
+    return this.request('tools.sessions');
+  }
+
+  async getAuditLogs(limit?: number): Promise<any> {
+    return this.request('tools.audit', { limit });
+  }
+
+  async emergencyStop(): Promise<any> {
+    return this.request('tools.emergency_stop');
+  }
+
+  async emergencyReset(): Promise<any> {
+    return this.request('tools.emergency_reset');
+  }
 }

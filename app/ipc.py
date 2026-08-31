@@ -20,9 +20,11 @@ from loguru import logger
 from .core.config import settings
 from .core.db import execute
 from .core.diagnostics import run_all_diagnostics
-from .core.errors import NexoraError, AuthenticationError, ProviderError, VoiceError
+from .core.errors import NexoraError, AuthenticationError, ProviderError, VoiceError, ToolError
 from .providers import manager
 from .voice import VoiceManager, VoiceState
+from .tools import registry
+from .tools.permissions import permissions
 
 _UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 _UI_DIST_DIR = _UI_DIR / "dist"
@@ -75,6 +77,14 @@ class IPCServer:
             "voice.stop": self._handle_voice_stop,
             "voice.devices": self._handle_voice_devices,
             "voice.configure": self._handle_voice_configure,
+            "tools.list": self._handle_tools_list,
+            "tools.execute": self._handle_tools_execute,
+            "tools.confirm": self._handle_tools_confirm,
+            "tools.cancel": self._handle_tools_cancel,
+            "tools.sessions": self._handle_tools_sessions,
+            "tools.audit": self._handle_tools_audit,
+            "tools.emergency_stop": self._handle_tools_emergency_stop,
+            "tools.emergency_reset": self._handle_tools_emergency_reset,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -114,6 +124,17 @@ class IPCServer:
         except VoiceError as e:
             logger.warning(f"Voice pipeline init failed (non-fatal): {e}")
             self._voice = None
+
+        # Register all tools
+        from .tools.file_tools import register_file_tools
+        from .tools.system_tools import register_system_tools
+        from .tools.terminal_tools import register_terminal_tools
+        from .tools.app_tools import register_app_tools
+        register_file_tools(registry)
+        register_system_tools(registry)
+        register_terminal_tools(registry)
+        register_app_tools(registry)
+        logger.info(f"Tools registered: {len(registry.list_tools())} tools in {len(registry.list_categories())} categories")
 
         logger.info(
             f"IPC server started on {settings.server.host}:{settings.server.port}"
@@ -192,6 +213,67 @@ class IPCServer:
             microphone_device=params.get("microphone_device"),
         )
         return {"ok": True, "available": self._voice.available}
+
+    # --- Tool handlers ---
+
+    async def _handle_tools_list(self, params: dict) -> list:
+        category = params.get("category")
+        return [s.to_dict() for s in registry.list_tools(category)]
+
+    async def _handle_tools_execute(self, params: dict) -> dict:
+        name = params.get("name")
+        tool_inputs = params.get("inputs", {})
+        confirmed = params.get("confirmed", False)
+
+        if not name:
+            raise ToolError("Tool name is required.")
+
+        result = await registry.execute(name, tool_inputs, confirmed=confirmed)
+
+        if result.error == "confirmation_required":
+            return {
+                "confirmation_required": True,
+                "token": result.details,
+                "tool": name,
+                "inputs": tool_inputs,
+            }
+
+        return result.to_dict()
+
+    async def _handle_tools_confirm(self, params: dict) -> dict:
+        token = params.get("token")
+        if not token:
+            raise ToolError("Confirmation token required.")
+        result = await registry.confirm_and_execute(token)
+        return result.to_dict()
+
+    async def _handle_tools_cancel(self, params: dict) -> dict:
+        token = params.get("token")
+        if token:
+            await registry.cancel_confirmation(token)
+        # Also cancel terminal sessions
+        session_id = params.get("session_id")
+        if session_id:
+            from .tools.terminal_tools import ExecuteCommandTool
+            tool = ExecuteCommandTool()
+            await tool.cancel(session_id)
+        return {"ok": True}
+
+    async def _handle_tools_sessions(self, params: dict) -> dict:
+        sessions = permissions.get_active_tasks()
+        return {"sessions": sessions, "emergency_stop": permissions.is_emergency_stopped}
+
+    async def _handle_tools_audit(self, params: dict) -> list:
+        limit = params.get("limit", 50)
+        return await permissions.get_audit_logs(limit)
+
+    async def _handle_tools_emergency_stop(self, params: dict) -> dict:
+        permissions.emergency_stop()
+        return {"emergency_stop": True}
+
+    async def _handle_tools_emergency_reset(self, params: dict) -> dict:
+        permissions.reset_emergency_stop()
+        return {"emergency_stop": False}
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle WebSocket connections from the frontend."""

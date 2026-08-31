@@ -85,6 +85,25 @@ class IPCServer:
             "tools.audit": self._handle_tools_audit,
             "tools.emergency_stop": self._handle_tools_emergency_stop,
             "tools.emergency_reset": self._handle_tools_emergency_reset,
+            # Coding handlers
+            "coding.read_file": self._handle_coding_read_file,
+            "coding.write_file": self._handle_coding_write_file,
+            "coding.search": self._handle_coding_search,
+            "coding.list_dir": self._handle_coding_list_dir,
+            "coding.git.status": self._handle_coding_git_status,
+            "coding.git.diff": self._handle_coding_git_diff,
+            "coding.git.log": self._handle_coding_git_log,
+            "coding.git.add": self._handle_coding_git_add,
+            "coding.git.commit": self._handle_coding_git_commit,
+            "coding.git.branch": self._handle_coding_git_branch,
+            "coding.test.run": self._handle_coding_test_run,
+            "coding.agent.explain": self._handle_coding_agent_explain,
+            "coding.agent.generate": self._handle_coding_agent_generate,
+            "coding.agent.refactor": self._handle_coding_agent_refactor,
+            "coding.agent.find_bugs": self._handle_coding_agent_find_bugs,
+            "coding.agent.create_tests": self._handle_coding_agent_create_tests,
+            "coding.projects.list": self._handle_coding_projects_list,
+            "coding.projects.open": self._handle_coding_projects_open,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -134,6 +153,18 @@ class IPCServer:
         register_system_tools(registry)
         register_terminal_tools(registry)
         register_app_tools(registry)
+
+        # Register coding tools
+        from .coding.code_editor import register_code_tools
+        from .coding.git_ops import register_git_tools
+        from .coding.test_runner import register_test_tools
+        from .coding.ai_agent import register_ai_tools
+        from .coding.project_manager import register_project_tools
+        register_code_tools(registry)
+        register_git_tools(registry)
+        register_test_tools(registry)
+        register_ai_tools(registry)
+        register_project_tools(registry)
         logger.info(f"Tools registered: {len(registry.list_tools())} tools in {len(registry.list_categories())} categories")
 
         logger.info(
@@ -274,6 +305,86 @@ class IPCServer:
     async def _handle_tools_emergency_reset(self, params: dict) -> dict:
         permissions.reset_emergency_stop()
         return {"emergency_stop": False}
+
+    # --- Coding handlers ---
+
+    async def _handle_coding_read_file(self, params: dict) -> dict:
+        result = await registry.execute("coding.read_file", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_write_file(self, params: dict) -> dict:
+        result = await registry.execute("coding.write_file", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "coding.write_file"}
+        return result.to_dict()
+
+    async def _handle_coding_search(self, params: dict) -> dict:
+        result = await registry.execute("coding.search", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_list_dir(self, params: dict) -> dict:
+        result = await registry.execute("coding.list_dir", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_git_status(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.status", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_git_diff(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.diff", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_git_log(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.log", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_git_add(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.add", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_git_commit(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.commit", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "coding.git.commit"}
+        return result.to_dict()
+
+    async def _handle_coding_git_branch(self, params: dict) -> dict:
+        result = await registry.execute("coding.git.branch", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_test_run(self, params: dict) -> dict:
+        result = await registry.execute("coding.test.run", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_agent_explain(self, params: dict) -> dict:
+        result = await registry.execute("coding.agent.explain", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_agent_generate(self, params: dict) -> dict:
+        result = await registry.execute("coding.agent.generate", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_agent_refactor(self, params: dict) -> dict:
+        result = await registry.execute("coding.agent.refactor", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "coding.agent.refactor"}
+        return result.to_dict()
+
+    async def _handle_coding_agent_find_bugs(self, params: dict) -> dict:
+        result = await registry.execute("coding.agent.find_bugs", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_agent_create_tests(self, params: dict) -> dict:
+        result = await registry.execute("coding.agent.create_tests", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_projects_list(self, params: dict) -> dict:
+        result = await registry.execute("coding.projects.list", {}, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_coding_projects_open(self, params: dict) -> dict:
+        result = await registry.execute("coding.projects.open", params, confirmed=True)
+        return result.to_dict()
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle WebSocket connections from the frontend."""

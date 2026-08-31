@@ -12,6 +12,7 @@ import { VoiceController } from './components/VoiceController';
 import { Terminal } from './components/Terminal';
 import { FileExplorer } from './components/FileExplorer';
 import { ConfirmationDialog } from './components/ConfirmationDialog';
+import { CodingWorkspace } from './components/CodingWorkspace';
 
 export class App {
   private ipc: IPCClient;
@@ -26,6 +27,7 @@ export class App {
   private terminal: Terminal | null = null;
   private fileExplorer: FileExplorer | null = null;
   private confirmDialog: ConfirmationDialog | null = null;
+  private codingWorkspace: CodingWorkspace | null = null;
 
   constructor() {
     this.ipc = new IPCClient();
@@ -57,6 +59,7 @@ export class App {
     this.fileExplorer = new FileExplorer(this.ipc);
     this.confirmDialog = new ConfirmationDialog(this.ipc);
     void this.confirmDialog;
+    this.codingWorkspace = new CodingWorkspace(this.ipc);
 
     // Start Three.js scene
     this.threeScene.start();
@@ -91,9 +94,10 @@ export class App {
       chatContainer.style.display = view === 'chat' ? 'block' : 'none';
     }
 
-    // Handle view switching
+    // Hide all view-specific components
     this.terminal?.hide();
     this.fileExplorer?.hide();
+    this.codingWorkspace?.hide();
 
     if (view === 'settings') {
       this.settingsModal?.open();
@@ -101,6 +105,8 @@ export class App {
       this.diagnosticsModal?.open();
     } else if (view === 'terminal') {
       this.terminal?.show();
+    } else if (view === 'coding' || view === 'projects') {
+      this.codingWorkspace?.show();
     } else if (view === 'chat') {
       this.fileExplorer?.show();
     }

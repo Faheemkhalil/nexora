@@ -126,6 +126,15 @@ class IPCServer:
             "security.scope.add": self._handle_security_scope_add,
             "security.scope.list": self._handle_security_scope_list,
             "security.scope.delete": self._handle_security_scope_delete,
+            # Memory handlers
+            "memory.set": self._handle_memory_set,
+            "memory.get": self._handle_memory_get,
+            "memory.search": self._handle_memory_search,
+            "memory.delete": self._handle_memory_delete,
+            "memory.clear": self._handle_memory_clear,
+            "memory.scopes": self._handle_memory_scopes,
+            # Local AI
+            "local_ai.detect": self._handle_local_ai_detect,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -207,6 +216,10 @@ class IPCServer:
         register_lab_tools(registry)
         register_report_tools(registry)
         register_scope_tools(registry)
+
+        # Register memory tools
+        from .core.memory import register_memory_tools
+        register_memory_tools(registry)
         logger.info(f"Tools registered: {len(registry.list_tools())} tools in {len(registry.list_categories())} categories")
 
         logger.info(
@@ -525,6 +538,41 @@ class IPCServer:
         if result.error == "confirmation_required":
             return {"confirmation_required": True, "token": result.details, "tool": "security.scope.delete"}
         return result.to_dict()
+
+    # --- Memory handlers ---
+
+    async def _handle_memory_set(self, params: dict) -> dict:
+        result = await registry.execute("memory.set", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_memory_get(self, params: dict) -> dict:
+        result = await registry.execute("memory.get", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_memory_search(self, params: dict) -> dict:
+        result = await registry.execute("memory.search", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_memory_delete(self, params: dict) -> dict:
+        result = await registry.execute("memory.delete", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_memory_clear(self, params: dict) -> dict:
+        result = await registry.execute("memory.clear", params, confirmed=params.get("confirmed", False))
+        if result.error == "confirmation_required":
+            return {"confirmation_required": True, "token": result.details, "tool": "memory.clear"}
+        return result.to_dict()
+
+    async def _handle_memory_scopes(self, params: dict) -> dict:
+        result = await registry.execute("memory.scopes", {}, confirmed=True)
+        return result.to_dict()
+
+    # --- Local AI handlers ---
+
+    async def _handle_local_ai_detect(self, params: dict) -> dict:
+        from .core.local_ai import detect_local_ai
+        info = await detect_local_ai()
+        return {"available": info is not None, "info": info}
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle WebSocket connections from the frontend."""

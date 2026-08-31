@@ -240,6 +240,63 @@ async def _check_keyring() -> DiagnosticResult:
     )
 
 
+async def _check_internet() -> DiagnosticResult:
+    """Check internet connectivity."""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get("https://httpbin.org/ip")
+            if resp.status_code == 200:
+                return DiagnosticResult("Internet connectivity", STATUS_OK, "Internet connection available.")
+    except Exception:
+        pass
+    return DiagnosticResult(
+        "Internet connectivity",
+        STATUS_WARNING,
+        "Internet not available. Online features will be limited.",
+        "Check your network connection.",
+    )
+
+
+async def _check_local_ai() -> DiagnosticResult:
+    """Check for local AI backends (Ollama, llama.cpp)."""
+    from .local_ai import detect_local_ai
+    info = await detect_local_ai()
+    if info:
+        models = info.get("models", [])
+        return DiagnosticResult(
+            "Local AI",
+            STATUS_OK,
+            f"{info['backend']} detected: {len(models)} model(s) available.",
+        )
+    return DiagnosticResult(
+        "Local AI",
+        STATUS_WARNING,
+        "No local AI backend detected (Ollama, llama.cpp).",
+        "Install Ollama (https://ollama.com) for offline AI capabilities.",
+    )
+
+
+async def _check_memory_system() -> DiagnosticResult:
+    """Check the memory system."""
+    try:
+        from .memory import memory
+        scopes = await memory.list_scopes()
+        total = sum(s["count"] for s in scopes)
+        return DiagnosticResult(
+            "Memory system",
+            STATUS_OK,
+            f"Memory operational. {total} entries across {len(scopes)} scope(s).",
+        )
+    except Exception as e:
+        return DiagnosticResult(
+            "Memory system",
+            STATUS_ERROR,
+            f"Memory system error: {e}",
+            "Check database and logs.",
+        )
+
+
 async def run_all_diagnostics() -> list[DiagnosticResult]:
     """Run all diagnostic checks and return results."""
     logger.info("Running diagnostics...")
@@ -251,6 +308,9 @@ async def run_all_diagnostics() -> list[DiagnosticResult]:
         _check_keyring,
         _check_audio,
         _check_provider_config,
+        _check_internet,
+        _check_local_ai,
+        _check_memory_system,
     ]
     results: list[DiagnosticResult] = []
     for check in checks:

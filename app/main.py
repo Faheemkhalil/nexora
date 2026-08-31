@@ -45,9 +45,43 @@ class NEXORAApp:
         logger.info("=== NEXORA Ready ===")
 
     async def run_desktop(self) -> None:
-        """Start the backend and launch the desktop window."""
-        await self.startup()
+        """Start the backend and launch the desktop window.
 
+        The asyncio event loop (with aiohttp) runs in a daemon thread
+        so that pywebview's blocking GTK main loop does not starve it.
+        """
+        import threading
+
+        # --- Background thread: asyncio loop with aiohttp IPC server ---
+        self._bg_loop: asyncio.AbstractEventLoop | None = None
+        _startup_error: Exception | None = None
+
+        def _bg_entry():
+            nonlocal _startup_error
+            self._bg_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._bg_loop)
+            try:
+                self._bg_loop.run_until_complete(self.startup())
+                self._bg_loop.run_forever()
+            except Exception as exc:
+                _startup_error = exc
+                logger.error(f"Background loop error: {exc}")
+
+        bg_thread = threading.Thread(target=_bg_entry, daemon=True)
+        bg_thread.start()
+
+        # Wait for startup to complete (poll until IPC is ready)
+        import time as _time
+        for _ in range(50):  # up to 5 seconds
+            _time.sleep(0.1)
+            if self.ipc is not None or _startup_error is not None:
+                break
+        if _startup_error:
+            raise _startup_error
+
+        logger.info("Background asyncio thread running.")
+
+        # --- Main thread: pywebview GTK window ---
         import webview
 
         url = f"http://{settings.server.host}:{settings.server.port}/webui/"
@@ -65,16 +99,10 @@ class NEXORAApp:
 
         def on_closing():
             logger.info("Window closing — initiating shutdown.")
-            asyncio.create_task(self.shutdown())
+            if self._bg_loop and self._bg_loop.is_running():
+                self._bg_loop.call_soon_threadsafe(self.shutdown_sync)
 
         window.events.closing += on_closing
-
-        # Run the pywebview event loop alongside async backend
-        # pywebview runs its own event loop; we use a background task for backend
-        loop = asyncio.get_event_loop()
-
-        # Start a heartbeat task to keep the backend alive
-        heartbeat = loop.create_task(self._heartbeat())
 
         try:
             webview.start(
@@ -85,11 +113,6 @@ class NEXORAApp:
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received.")
         finally:
-            heartbeat.cancel()
-            try:
-                await heartbeat
-            except asyncio.CancelledError:
-                pass
             await self.shutdown()
 
     async def run_headless(self) -> None:
@@ -112,6 +135,11 @@ class NEXORAApp:
                 logger.info("Shutdown detected via heartbeat.")
                 break
 
+    def shutdown_sync(self) -> None:
+        """Synchronous shutdown helper — call from a non-async context."""
+        if self._bg_loop and self._bg_loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.shutdown(), self._bg_loop)
+
     async def shutdown(self) -> int:
         """Graceful shutdown of all subsystems."""
         if not self._running:
@@ -125,20 +153,23 @@ class NEXORAApp:
 
         await manager.shutdown()
         logger.info("=== NEXORA Stopped ===")
+
+        # Stop the background loop if running
+        if self._bg_loop and self._bg_loop.is_running():
+            self._bg_loop.call_soon_threadsafe(self._bg_loop.stop)
+
         return 0
 
 
 async def _async_main() -> int:
     app = NEXORAApp()
 
-    def handle_signal():
-        asyncio.create_task(app.shutdown())
-
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, handle_signal)
-
     if "--headless" in sys.argv:
+        def handle_signal():
+            asyncio.create_task(app.shutdown())
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, handle_signal)
         await app.run_headless()
     else:
         await app.run_desktop()

@@ -135,6 +135,29 @@ class IPCServer:
             "memory.scopes": self._handle_memory_scopes,
             # Local AI
             "local_ai.detect": self._handle_local_ai_detect,
+            # Plugin system
+            "plugins.list": self._handle_plugins_list,
+            "plugins.installed": self._handle_plugins_installed,
+            "plugins.install": self._handle_plugins_install,
+            "plugins.uninstall": self._handle_plugins_uninstall,
+            "plugins.toggle": self._handle_plugins_toggle,
+            # Marketplace
+            "marketplace.search": self._handle_marketplace_search,
+            "marketplace.featured": self._handle_marketplace_featured,
+            "marketplace.trending": self._handle_marketplace_trending,
+            "marketplace.categories": self._handle_marketplace_categories,
+            "marketplace.stats": self._handle_marketplace_stats,
+            "marketplace.reviews": self._handle_marketplace_reviews,
+            # Community
+            "community.favorites": self._handle_community_favorites,
+            "community.favorite.add": self._handle_community_favorite_add,
+            "community.favorite.remove": self._handle_community_favorite_remove,
+            "community.rate": self._handle_community_rate,
+            "community.ratings": self._handle_community_ratings,
+            "community.collections": self._handle_community_collections,
+            "community.collection.create": self._handle_community_collection_create,
+            "community.collection.delete": self._handle_community_collection_delete,
+            "community.collection.update": self._handle_community_collection_update,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -573,6 +596,145 @@ class IPCServer:
         from .core.local_ai import detect_local_ai
         info = await detect_local_ai()
         return {"available": info is not None, "info": info}
+
+    # ── Plugin handlers ──────────────────────────────────────────────
+
+    async def _handle_plugins_list(self, params: dict) -> dict:
+        from .plugins.loader import PluginManager
+        pm = PluginManager()
+        return {"plugins": pm.list_available()}
+
+    async def _handle_plugins_installed(self, params: dict) -> dict:
+        from .plugins.loader import PluginManager
+        pm = PluginManager()
+        return {"plugins": pm.get_installed()}
+
+    async def _handle_plugins_install(self, params: dict) -> dict:
+        from .plugins.loader import PluginManager
+        pm = PluginManager()
+        name = params.get("name", "")
+        version = params.get("version", "latest")
+        manifest = params.get("manifest")
+        result = pm.install(name, version, manifest)
+        return {"installed": True, "plugin": result}
+
+    async def _handle_plugins_uninstall(self, params: dict) -> dict:
+        from .plugins.loader import PluginManager
+        pm = PluginManager()
+        plugin_id = params.get("id", "")
+        pm.uninstall(plugin_id)
+        return {"uninstalled": True}
+
+    async def _handle_plugins_toggle(self, params: dict) -> dict:
+        from .plugins.loader import PluginManager
+        pm = PluginManager()
+        plugin_id = params.get("id", "")
+        enabled = params.get("enabled", True)
+        pm.toggle(plugin_id, enabled)
+        return {"toggled": True, "enabled": enabled}
+
+    # ── Marketplace handlers ─────────────────────────────────────────
+
+    async def _handle_marketplace_search(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        query = params.get("query", "")
+        category = params.get("category", "")
+        tags = params.get("tags")
+        return {"results": mc.search(query, category, tags)}
+
+    async def _handle_marketplace_featured(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        return {"featured": mc.get_featured()}
+
+    async def _handle_marketplace_trending(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        return {"trending": mc.get_trending()}
+
+    async def _handle_marketplace_categories(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        return {"categories": mc.get_categories()}
+
+    async def _handle_marketplace_stats(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        return mc.get_stats()
+
+    async def _handle_marketplace_reviews(self, params: dict) -> dict:
+        from .plugins.marketplace import MarketplaceClient
+        mc = MarketplaceClient()
+        name = params.get("name", "")
+        return {"reviews": mc.get_reviews(name)}
+
+    # ── Community handlers ───────────────────────────────────────────
+
+    async def _handle_community_favorites(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        return {"favorites": cm.get_favorites()}
+
+    async def _handle_community_favorite_add(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        name = params.get("name", "")
+        result = cm.add_favorite(name)
+        return {"added": True, "favorite": result}
+
+    async def _handle_community_favorite_remove(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        name = params.get("name", "")
+        cm.remove_favorite(name)
+        return {"removed": True}
+
+    async def _handle_community_rate(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        name = params.get("name", "")
+        rating = params.get("rating", 5)
+        comment = params.get("comment", "")
+        result = cm.rate_plugin(name, rating, comment)
+        return {"rated": True, "rating": result}
+
+    async def _handle_community_ratings(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        name = params.get("name", "")
+        return {"ratings": cm.get_ratings(name), "average": cm.get_average_rating(name)}
+
+    async def _handle_community_collections(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        return {"collections": cm.get_collections()}
+
+    async def _handle_community_collection_create(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        name = params.get("name", "")
+        desc = params.get("description", "")
+        plugins = params.get("plugins", [])
+        result = cm.create_collection(name, desc, plugins)
+        return {"created": True, "collection": result}
+
+    async def _handle_community_collection_delete(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        col_id = params.get("id", "")
+        cm.delete_collection(col_id)
+        return {"deleted": True}
+
+    async def _handle_community_collection_update(self, params: dict) -> dict:
+        from .plugins.community import CommunityManager
+        cm = CommunityManager()
+        col_id = params.get("id", "")
+        name = params.get("name")
+        desc = params.get("description")
+        plugins = params.get("plugins")
+        cm.update_collection(col_id, name, desc, plugins)
+        return {"updated": True}
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle WebSocket connections from the frontend."""

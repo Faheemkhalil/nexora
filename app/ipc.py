@@ -104,6 +104,12 @@ class IPCServer:
             "coding.agent.create_tests": self._handle_coding_agent_create_tests,
             "coding.projects.list": self._handle_coding_projects_list,
             "coding.projects.open": self._handle_coding_projects_open,
+            # Internet handlers
+            "internet.search": self._handle_internet_search,
+            "internet.fetch": self._handle_internet_fetch,
+            "internet.fetch_json": self._handle_internet_fetch_json,
+            "internet.docs": self._handle_internet_docs,
+            "internet.open": self._handle_internet_open,
             "shutdown": self._handle_shutdown,
         }
         self._shutdown_requested = False
@@ -165,6 +171,16 @@ class IPCServer:
         register_test_tools(registry)
         register_ai_tools(registry)
         register_project_tools(registry)
+
+        # Register internet tools
+        from .internet.search import WebSearchTool
+        from .internet.fetch import register_fetch_tools
+        from .internet.docs import register_docs_tools
+        from .internet.browser import register_browser_tools
+        registry.register(WebSearchTool())
+        register_fetch_tools(registry)
+        register_docs_tools(registry)
+        register_browser_tools(registry)
         logger.info(f"Tools registered: {len(registry.list_tools())} tools in {len(registry.list_categories())} categories")
 
         logger.info(
@@ -384,6 +400,28 @@ class IPCServer:
 
     async def _handle_coding_projects_open(self, params: dict) -> dict:
         result = await registry.execute("coding.projects.open", params, confirmed=True)
+        return result.to_dict()
+
+    # --- Internet handlers ---
+
+    async def _handle_internet_search(self, params: dict) -> dict:
+        result = await registry.execute("internet.search", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_internet_fetch(self, params: dict) -> dict:
+        result = await registry.execute("internet.fetch", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_internet_fetch_json(self, params: dict) -> dict:
+        result = await registry.execute("internet.fetch_json", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_internet_docs(self, params: dict) -> dict:
+        result = await registry.execute("internet.docs", params, confirmed=True)
+        return result.to_dict()
+
+    async def _handle_internet_open(self, params: dict) -> dict:
+        result = await registry.execute("internet.open", params, confirmed=True)
         return result.to_dict()
 
     async def _websocket_handler(self, request: web.Request) -> web.WebSocketResponse:

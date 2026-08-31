@@ -89,15 +89,15 @@ export class ThreeScene {
     );
     this.camera.position.set(0, 0, 5);
 
-    // Lights
-    const ambient = new THREE.AmbientLight(0x223344, 0.5);
+    // Lights — restrained to keep the core cyan, not white
+    const ambient = new THREE.AmbientLight(0x112233, 0.25);
     this.scene.add(ambient);
 
-    const rimLight = new THREE.DirectionalLight(0x00d4ff, 0.3);
+    const rimLight = new THREE.DirectionalLight(0x00d4ff, 0.15);
     rimLight.position.set(0, 5, -5);
     this.scene.add(rimLight);
 
-    const coreLight = new THREE.PointLight(0x00d4ff, 0, 10);
+    const coreLight = new THREE.PointLight(0x00d4ff, 1.5, 8);
     coreLight.position.set(0, 0, 0);
     this.scene.add(coreLight);
     this.coreLight = coreLight;
@@ -111,19 +111,21 @@ export class ThreeScene {
     this.core = new THREE.Group();
     this.scene.add(this.core);
 
-    // Central sphere
+    // Central sphere — dark glass with cyan translucency, not white
     const geometry = new THREE.IcosahedronGeometry(1, 16);
     const material = new THREE.MeshPhysicalMaterial({
-      color: 0x001122,
-      metalness: 0.3,
-      roughness: 0.1,
-      transmission: 0.8,
-      thickness: 0.5,
-      clearcoat: 1,
-      clearcoatRoughness: 0.1,
-      ior: 1.5,
+      color: 0x001822,
+      metalness: 0.2,
+      roughness: 0.15,
+      transmission: 0.5,
+      thickness: 0.3,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.15,
+      ior: 1.3,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.85,
+      emissive: new THREE.Color(0x003355),
+      emissiveIntensity: 0.3,
     });
     this.coreSphere = new THREE.Mesh(geometry, material);
     this.core.add(this.coreSphere);
